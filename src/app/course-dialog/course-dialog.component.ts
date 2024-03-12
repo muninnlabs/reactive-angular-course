@@ -1,50 +1,64 @@
-import {AfterViewInit, Component, ElementRef, Inject, OnInit, ViewChild, ViewEncapsulation} from '@angular/core';
+import { AfterViewInit, Component, Inject } from "@angular/core";
+import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
-import {Course} from "../model/course";
-import {FormBuilder, Validators, FormGroup} from "@angular/forms";
-import * as moment from 'moment';
-import {catchError} from 'rxjs/operators';
-import {throwError} from 'rxjs';
+import * as moment from "moment";
+import { throwError } from "rxjs";
+import { catchError } from "rxjs/operators";
+import { Course } from "../model/course";
+import { CoursesService } from "../services/courses.service";
+import { MessagesService } from "../services/messages.service";
+import { LoadingService } from "./../services/loading.service";
 
 @Component({
-    selector: 'course-dialog',
-    templateUrl: './course-dialog.component.html',
-    styleUrls: ['./course-dialog.component.css']
+  selector: "course-dialog",
+  templateUrl: "./course-dialog.component.html",
+  styleUrls: ["./course-dialog.component.css"],
 })
 export class CourseDialogComponent implements AfterViewInit {
+  form: FormGroup;
 
-    form: FormGroup;
+  course: Course;
 
-    course:Course;
+  constructor(
+    private LoadingService: LoadingService,
+    private mensageService: MessagesService,
+    private coursesService: CoursesService,
+    private fb: FormBuilder,
+    private dialogRef: MatDialogRef<CourseDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) course: Course
+  ) {
+    this.course = course;
 
-    constructor(
-        private fb: FormBuilder,
-        private dialogRef: MatDialogRef<CourseDialogComponent>,
-        @Inject(MAT_DIALOG_DATA) course:Course) {
+    this.form = fb.group({
+      description: [course.description, Validators.required],
+      category: [course.category, Validators.required],
+      releasedAt: [moment(), Validators.required],
+      longDescription: [course.longDescription, Validators.required],
+    });
+  }
 
-        this.course = course;
+  ngAfterViewInit() {}
 
-        this.form = fb.group({
-            description: [course.description, Validators.required],
-            category: [course.category, Validators.required],
-            releasedAt: [moment(), Validators.required],
-            longDescription: [course.longDescription,Validators.required]
-        });
+  save() {
+    const changes = this.form.value;
 
-    }
+    const saveCourse$ = this.coursesService
+      .saveCourse(this.course.id, changes)
+      .pipe(
+        catchError((err) => {
+          const message = "Could not save course";
+          this.mensageService.showErrors(message);
+          console.log(message, err);
+          return throwError(err);
+        })
+      );
 
-    ngAfterViewInit() {
+    this.LoadingService.showLoaderUntilCompleted(saveCourse$).subscribe((val) =>
+      this.dialogRef.close(val)
+    );
+  }
 
-    }
-
-    save() {
-
-      const changes = this.form.value;
-
-    }
-
-    close() {
-        this.dialogRef.close();
-    }
-
+  close() {
+    this.dialogRef.close();
+  }
 }
